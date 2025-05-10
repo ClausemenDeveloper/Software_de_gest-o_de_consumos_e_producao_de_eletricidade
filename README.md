@@ -1,1 +1,0 @@
-# Software_de_gest-o_de_consumos_e_producao_de_eletricidade
