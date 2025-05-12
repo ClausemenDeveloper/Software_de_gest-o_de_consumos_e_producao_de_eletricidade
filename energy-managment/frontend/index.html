@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Gestão de Energia Solar</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="login-form">
+  <h1>Gestão de Energia Solar</h1>
+  <form class="form">
+    <input type="text" id="username" placeholder="Username" required>
+    <input type="password" id="password" placeholder="Password" required>
+    <button type="submit">Login</button>
+    <p id="error-message" style="color: red;"></p>
+  </form>
+</div>
+
+  <div id="dashboard" style="display: none;">
+    <h1>Gestão de Energia Solar</h1>
+    <button onclick="logout()">Logout</button>
+    <div class="form">
+      <h2>Registrar Produção</h2>
+      <input type="date" id="production-date">
+      <input type="number" id="production-kwh" placeholder="kWh gerado" step="0.01">
+      <button onclick="addProduction()">Adicionar</button>
+    </div>
+    <div class="form">
+      <h2>Registrar Consumo</h2>
+      <input type="date" id="consumption-date">
+      <input type="number" id="consumption-kwh" placeholder="kWh consumido" step="0.01">
+      <button onclick="addConsumption()">Adicionar</button>
+    </div>
+    <h2>Métricas</h2>
+    <div id="metrics"></div>
+    <h2>Histórico</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Tipo</th>
+          <th>Data</th>
+          <th>kWh</th>
+        </tr>
+      </thead>
+      <tbody id="energy-table-body"></tbody>
+    </table>
+    <h2>Gráfico</h2>
+    <canvas id="energyChart"></canvas>
+  </div>
+
+  <script src="lib/chart.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
