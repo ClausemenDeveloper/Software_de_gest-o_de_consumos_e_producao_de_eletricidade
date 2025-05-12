@@ -21,3 +21,27 @@ bcrypt.hash('sua_senha', 10).then(hash => {
   // Inserir no MongoDB na coleção 'users':
   // { username: 'teste', password: hash }
 });
+
+#Instruções Adicionais
+=====================================
+para usar no Sistema de electricidade
+npx http-server no frontend
+
+============================
+npm strat -> no backend
+
+
+================================
+POST: /api/login
+{
+	"username":"teste",
+	"password":"minha123"
+}
+
+, e depois copiar o token dado
+
+e passar no cabeçalho como
+key: Authorizaion
+value: Bearer <token>
+
+com o endereço : api/energy-data
