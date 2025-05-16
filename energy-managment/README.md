@@ -46,3 +46,11 @@ value: Bearer <token>
 
 com o endereço : api/energy-data
 #Sprint 1
+
+#ir ver o (ipconfig)
+(ps: na parte de wsl ipv4), colocar no cmd
+
+## No WSL, teste a conexão usando o IP do Windows:
+## bash
+# Teste a conexão com o MongoDB
+mongosh mongodb://192.168.183.222:27017
