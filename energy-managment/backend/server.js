@@ -14,7 +14,7 @@ app.use(cors());
 
 // Conexão com MongoDB
 mongoose.set('strictQuery', true);
-mongoose.connect('mongodb://172.19.160.1:27017/energy_management', {
+mongoose.connect('mongodb://172.25.48.1:27017/energy_management', {
   useNewUrlParser: true,
   useUnifiedTopology: true
 });
