@@ -1,51 +1,101 @@
+/* Layout Geral */
 body {
   font-family: Arial, sans-serif;
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 20px;
+  margin: 0;
+  padding: 0;
+  background-color: #001f3f; /* darkblue mais profundo */
+  color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.form {
-  margin: 20px 0;
-  max-width: 300px;
-}
-
-.form input, .form button {
-  margin: 10px 0;
-  padding: 8px;
+/* Centralizar o login e dashboard */
+#login-form, #dashboard {
+  background-color: #003366; /* tom intermediário de darkblue */
+  padding: 30px;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  margin-top: 60px;
   width: 100%;
+  max-width: 400px;
+}
+
+/* Título */
+h1, h2 {
+  color: white;
+  text-align: center;
+}
+
+/* Formulário */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.form input,
+.form button {
+  padding: 10px;
+  border: none;
+  border-radius: 5px;
+  font-size: 16px;
   box-sizing: border-box;
 }
 
+/* Input Styles */
+.form input {
+  background-color: white;
+  color: #003366;
+}
+
+/* Botões */
 button {
-  background: #007bff;
+  background-color: #007bff;
   color: white;
-  border: none;
-  cursor: pointer;
+  transition: background-color 0.3s ease;
 }
 
 button:hover {
-  background: #0056b3;
+  background-color: #0056b3;
 }
 
+/* Tabela */
 table {
   width: 100%;
+  margin-top: 20px;
   border-collapse: collapse;
-  margin: 20px 0;
+  color: white;
 }
 
 th, td {
-  border: 1px solid #ddd;
-  padding: 8px;
-  text-align: left;
+  padding: 10px;
+  border: 1px solid #ccc;
 }
 
 th {
-  background: #f4f4f4;
+  background-color: #0056b3;
 }
 
 #metrics {
-  margin: 20px 0;
-  padding: 10px;
-  background: #f9f9f9;
+  background-color: #002244;
+  padding: 15px;
+  border-radius: 8px;
+  margin-top: 20px;
+  color: #ffffff;
+}
+
+/* Erro */
+#error-message {
+  text-align: center;
+  margin-top: 10px;
+}
+
+/* Responsividade */
+@media (max-width: 480px) {
+  #login-form, #dashboard {
+    width: 90%;
+    padding: 20px;
+  }
 }

@@ -4,19 +4,28 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const cors = require('cors');
 const moment = require('moment');
+
 const User = require('./models/User');
 const Production = require('./models/Production');
 const Consumption = require('./models/Consumption');
+const EnergyData = require('./models/EnergyData');
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
+// Configurações
+const JWT_SECRET = 'minha123'; // Use uma variável ambiente em produção
+
 // Conexão com MongoDB
 mongoose.set('strictQuery', true);
-mongoose.connect('mongodb://172.22.128.1:27017/energy_management', {
+mongoose.connect('mongodb://localhost:27017/energy_management', {
   useNewUrlParser: true,
   useUnifiedTopology: true
+}).then(() => {
+  console.log('MongoDB conectado');
+}).catch(err => {
+  console.error('Erro na conexão com MongoDB:', err);
 });
 
 // Middleware de autenticação
@@ -25,17 +34,18 @@ const authMiddleware = (req, res, next) => {
   if (!token) return res.status(401).json({ error: 'Token não fornecido' });
 
   try {
-    const decoded = jwt.verify(token, 'secret_key');
+    const decoded = jwt.verify(token, JWT_SECRET);
     req.userId = decoded.userId;
     next();
   } catch (error) {
-    res.status(401).json({ error: 'Token inválido' });
+    return res.status(401).json({ error: 'Token inválido' });
   }
 };
 
 // Rota de login
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
+
   try {
     const user = await User.findOne({ username });
     if (!user) return res.status(401).json({ error: 'Credenciais inválidas' });
@@ -43,7 +53,7 @@ app.post('/api/login', async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(401).json({ error: 'Credenciais inválidas' });
 
-    const token = jwt.sign({ userId: user._id }, 'minha2025', { expiresIn: '1h' });
+    const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '1h' });
     res.json({ token });
   } catch (error) {
     res.status(500).json({ error: 'Erro no servidor' });
@@ -122,46 +132,17 @@ app.get('/api/metrics', authMiddleware, async (req, res) => {
   }
 });
 
-app.get('/api/energy-data', authenticateToken, (req, res) => {
-  const data = [
-    { date: moment().subtract(6, 'days').format('YYYY-MM-DD'), energy: 10 },
-    { date: moment().subtract(5, 'days').format('YYYY-MM-DD'), energy: 12 },
-    { date: moment().subtract(4, 'days').format('YYYY-MM-DD'), energy: 15 },
-    { date: moment().subtract(3, 'days').format('YYYY-MM-DD'), energy: 14 },
-    { date: moment().subtract(2, 'days').format('YYYY-MM-DD'), energy: 18 },
-    { date: moment().subtract(1, 'days').format('YYYY-MM-DD'), energy: 20 },
-    { date: moment().format('YYYY-MM-DD'), energy: 22 }
-  ];
-  res.json(data);
-});
-
-function authenticateToken(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  console.log('Cabeçalho Authorization:', authHeader);
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) {
-    console.log('Token não encontrado');
-    return res.sendStatus(401);
+// Rotas de EnergyData
+app.get('/api/energy-data', authMiddleware, async (req, res) => {
+  try {
+    const data = await EnergyData.find().sort({ date: 1 });
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao buscar dados de energia' });
   }
-
-  jwt.verify(token, 'minha2025', (err, user) => {
-    if (err) {
-      console.log('Erro ao verificar token:', err.message);
-      return res.sendStatus(403);
-    }
-    console.log('Token válido, usuário:', user);
-    req.user = user;
-    next();
-  });
-}
-
-const EnergyData = require('./models/EnergyData'); // Crie o modelo
-app.get('/api/energy-data', authenticateToken, async (req, res) => {
-  const data = await EnergyData.find().sort({ date: 1 });
-  res.json(data);
 });
 
-app.post('/api/energy-data', authenticateToken, async (req, res) => {
+app.post('/api/energy-data', authMiddleware, async (req, res) => {
   const { date, energy, type } = req.body;
   if (!date || !energy || !type) {
     return res.status(400).json({ error: 'Campos obrigatórios ausentes' });

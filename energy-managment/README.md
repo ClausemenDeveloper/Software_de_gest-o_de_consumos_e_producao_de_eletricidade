@@ -53,4 +53,26 @@ com o endereço : api/energy-data
 ## No WSL, teste a conexão usando o IP do Windows:
 ## bash
 # Teste a conexão com o MongoDB
-mongosh mongodb://192.168.183.222:27017
+mongosh 
+
+##Novas Informaçoes
+primeiro:
+  verificar a BD com o comando mongosh no Wsl ou bash
+
+segundo: 
+  copiar para o postman as credenciais depois de ter 
+  criado uma password nova e ter setado na base de dados
+terceiro:
+  No postman coloque por exemplo:
+  {
+  "username": "testuser",
+  "password": "senha123"
+  }
+
+quarto:
+  inicie o backend e faça o login com o utilizador
+
+===========================================
+##Sprint 2
+
+
