@@ -2,26 +2,61 @@ const express = require('express');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const multer = require('multer');
+const path = require('path');
 const cors = require('cors');
 const moment = require('moment');
+const fs = require('fs'); // Adicionar esta linha
 
+const Installation = require('./models/Installation');
 const User = require('./models/User');
 const Production = require('./models/Production');
 const Consumption = require('./models/Consumption');
 const EnergyData = require('./models/EnergyData');
+const Certificate = require('./models/Certificate');
 
 const app = express();
 app.use(express.json());
 app.use(cors());
+app.use('/uploads', express.static('uploads'));
 
-// Configurações
-const JWT_SECRET = 'minha123'; // Use uma variável ambiente em produção
+// Configuração do Multer para upload de arquivos
+const uploadDir = 'uploads/';
+if (!fs.existsSync(uploadDir)) { // Agora fs está definido
+  fs.mkdirSync(uploadDir);
+  console.log('Diretório uploads/ criado');
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /pdf|jpg|png/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    if (extname && mimetype) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Apenas arquivos PDF, JPG ou PNG são permitidos!'));
+    }
+  }
+});
+
+// Configuração
+const JWT_SECRET = 'minha123'; // Use variáveis de ambiente em produção
 
 // Conexão com MongoDB
 mongoose.set('strictQuery', true);
 mongoose.connect('mongodb://localhost:27017/energy_management', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
 }).then(() => {
   console.log('MongoDB conectado');
 }).catch(err => {
@@ -29,38 +64,80 @@ mongoose.connect('mongodb://localhost:27017/energy_management', {
 });
 
 // Middleware de autenticação
-const authMiddleware = (req, res, next) => {
+const authMiddleware = async (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'Token não fornecido' });
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.userId = decoded.userId;
+
+    const user = await User.findById(decoded.userId);
+    if (!user) return res.status(401).json({ error: 'Usuário não encontrado' });
+    req.userRole = user.role;
+    req.username = user.username;
+
     next();
   } catch (error) {
     return res.status(401).json({ error: 'Token inválido' });
   }
 };
 
+// Middleware para autorizar clientes
+const authorizeClient = (req, res, next) => {
+  if (req.userRole !== 'cliente') {
+    return res.status(403).json({ error: 'Apenas clientes podem acessar esta rota.' });
+  }
+  next();
+};
+
+// Middleware para autorizar técnicos
+const authorizeTechnician = (req, res, next) => {
+  if (req.userRole !== 'tecnico') {
+    return res.status(403).json({ error: 'Apenas técnicos podem acessar esta rota.' });
+  }
+  next();
+};
+
 // Rota de login
 app.post('/api/login', async (req, res) => {
+  console.log('Requisição recebida:', req.body);
   const { username, password } = req.body;
 
+  if (!username || !password) {
+    console.log('Campos ausentes:', { username, password });
+    return res.status(400).json({ error: 'Campos username e password são obrigatórios' });
+  }
+
   try {
+    console.log('Buscando usuário:', username);
     const user = await User.findOne({ username });
-    if (!user) return res.status(401).json({ error: 'Credenciais inválidas' });
+    console.log('Usuário encontrado:', user);
 
+    if (!user) {
+      console.log('Usuário não encontrado');
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    console.log('Comparando senha com hash:', user.password);
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(401).json({ error: 'Credenciais inválidas' });
+    console.log('Senha corresponde:', isMatch);
 
-    const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '1h' });
+    if (!isMatch) {
+      console.log('Senha inválida');
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const token = jwt.sign({ userId: user._id, username: user.username, role: user.role }, 'minha123', { expiresIn: '1h' });
+    console.log('Token gerado:', token);
     res.json({ token });
   } catch (error) {
-    res.status(500).json({ error: 'Erro no servidor' });
+    console.error('Erro no servidor:', error.stack);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
-// Rotas de produção
+// ROTAS DE PRODUÇÃO
 app.post('/api/production', authMiddleware, async (req, res) => {
   const { date, kwh } = req.body;
   try {
@@ -85,7 +162,7 @@ app.get('/api/production', authMiddleware, async (req, res) => {
   }
 });
 
-// Rotas de consumo
+// ROTAS DE CONSUMO
 app.post('/api/consumption', authMiddleware, async (req, res) => {
   const { date, kwh } = req.body;
   try {
@@ -110,7 +187,7 @@ app.get('/api/consumption', authMiddleware, async (req, res) => {
   }
 });
 
-// Rota para métricas
+// MÉTRICAS
 app.get('/api/metrics', authMiddleware, async (req, res) => {
   try {
     const productions = await Production.find({ userId: req.userId });
@@ -132,7 +209,7 @@ app.get('/api/metrics', authMiddleware, async (req, res) => {
   }
 });
 
-// Rotas de EnergyData
+// DADOS DE ENERGIA
 app.get('/api/energy-data', authMiddleware, async (req, res) => {
   try {
     const data = await EnergyData.find().sort({ date: 1 });
@@ -157,4 +234,186 @@ app.post('/api/energy-data', authMiddleware, async (req, res) => {
   }
 });
 
-app.listen(3000, () => console.log('Server running on port 3000'));
+// ROTAS DE INSTALAÇÕES SOLARES
+app.post('/api/instalacoes', authMiddleware, authorizeClient, upload.array('documents', 10), async (req, res) => {
+  try {
+    const { date, power, panels, type, address, coordinates } = req.body;
+    const parsedCoordinates = JSON.parse(coordinates);
+
+    // Validação de campos obrigatórios
+    if (!date || !power || !panels || !type || !address || !parsedCoordinates.lat || !parsedCoordinates.lng) {
+      return res.status(400).json({ error: 'Todos os campos obrigatórios devem ser preenchidos' });
+    }
+
+    // Verificação de arquivos
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'Pelo menos um documento é obrigatório' });
+    }
+
+    const installation = new Installation({
+      userId: req.userId,
+      date,
+      power: parseFloat(power),
+      panels: parseInt(panels),
+      type,
+      address,
+      coordinates: parsedCoordinates,
+      documents: req.files.map(file => file.path),
+      estado: 'pendente', // Ajuste para 'estado' se for o campo do modelo
+      createdAt: new Date("2025-05-21T18:11:00Z") // Ajustado para 06:11 PM WEST
+    });
+
+    await installation.save();
+
+    res.status(201).json({
+      message: 'Instalação registrada com sucesso',
+      installation: installation
+    });
+  } catch (error) {
+    console.error('Erro ao registrar instalação:', error);
+    if (error.message.includes('Apenas arquivos PDF, JPG ou PNG são permitidos!')) {
+      return res.status(400).json({ error: error.message });
+    }
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Ver todas as instalações do usuário autenticado
+app.get('/api/instalacoes', authMiddleware, async (req, res) => {
+  try {
+    const installations = await Installation.find({ userId: req.userId }).sort({ date: -1 });
+    res.json(installations);
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao buscar instalações' });
+  }
+});
+
+// Listar Instalações Pendentes (Técnicos)
+app.get('/api/instalacoes/pendentes', authMiddleware, authorizeTechnician, async (req, res) => {
+  try {
+    const installations = await Installation.find({ status: 'pendente' });
+    res.json(installations);
+  } catch (error) {
+    console.error('Erro ao listar instalações:', error);
+    res.status(500).json({ error: 'Erro ao listar instalações' });
+  }
+});
+
+// Aprovar Instalação
+app.patch('/api/instalacoes/:id/aprovar', authMiddleware, authorizeTechnician, async (req, res) => {
+  try {
+    const installation = await Installation.findById(req.params.id);
+    if (!installation) {
+      return res.status(404).json({ error: 'Instalação não encontrada' });
+    }
+
+    installation.status = 'aprovado';
+    await installation.save();
+
+    // Gerar certificado
+    const certificate = new Certificate({
+      clienteId: installation.userId,
+      instalacaoId: installation._id,
+      emitidoPor: req.username,
+      dataEmissao: new Date(),
+      hashDigital: require('crypto').createHash('sha256').update(JSON.stringify(installation)).digest('hex'),
+      caminhoArquivo: `/uploads/certificado_${installation._id}.pdf` // Simulado
+    });
+
+    await certificate.save();
+    res.json({ message: 'Instalação aprovada e certificado gerado', certificate });
+  } catch (error) {
+    console.error('Erro ao aprovar instalação:', error);
+    res.status(500).json({ error: 'Erro ao aprovar instalação' });
+  }
+});
+
+// Rejeitar Instalação
+app.patch('/api/instalacoes/:id/rejeitar', authMiddleware, authorizeTechnician, async (req, res) => {
+  const { motivo } = req.body;
+  try {
+    const installation = await Installation.findById(req.params.id);
+    if (!installation) {
+      return res.status(404).json({ error: 'Instalação não encontrada' });
+    }
+
+    installation.status = 'rejeitado';
+    installation.motivoRejeicao = motivo;
+    await installation.save();
+    res.json({ message: 'Instalação rejeitada', installation });
+  } catch (error) {
+    console.error('Erro ao rejeitar instalação:', error);
+    res.status(500).json({ error: 'Erro ao rejeitar instalação' });
+  }
+});
+
+// Listar Certificados do Cliente
+app.get('/api/meus-certificados', authMiddleware, authorizeClient, async (req, res) => {
+  try {
+    const certificates = await Certificate.find({ clienteId: req.userId });
+    res.json(certificates);
+  } catch (error) {
+    console.error('Erro ao listar certificados:', error);
+    res.status(500).json({ error: 'Erro ao listar certificados' });
+  }
+});
+
+// NOVA ROTA: Upload de Certificados por Técnicos
+app.post('/api/certificados/upload', authMiddleware, authorizeTechnician, upload.single('certificado'), async (req, res) => {
+  try {
+    const { idCliente, idInstalacao, idTecnico } = req.body;
+
+    // Validar campos obrigatórios
+    if (!idCliente || !idInstalacao || !idTecnico || !req.file) {
+      return res.status(400).json({ error: 'Todos os campos (idCliente, idInstalacao, idTecnico e certificado) são obrigatórios.' });
+    }
+
+    // Buscar usuário correspondente por ID ou nome
+    const user = await User.findOne({
+      $or: [
+        { _id: idCliente },
+        { username: idCliente }
+      ]
+    });
+    if (!user) {
+      return res.status(404).json({ error: 'Usuário não encontrado.' });
+    }
+
+    // Validar a instalação
+    const installation = await Installation.findById(idInstalacao);
+    if (!installation) {
+      return res.status(404).json({ error: 'Instalação não encontrada.' });
+    }
+    if (installation.userId.toString() !== user._id.toString()) {
+      return res.status(403).json({ error: 'A instalação não pertence ao cliente informado.' });
+    }
+
+    // Salvar o arquivo no disco
+    const filePath = `uploads/certificado_${idInstalacao}_${Date.now()}.pdf`;
+    fs.writeFileSync(filePath, req.file.buffer);
+
+    // Converter para Base64
+    const certificadoBase64 = req.file.buffer.toString('base64');
+
+    // Criar o certificado
+    const certificado = new Certificate({
+      clienteId: user._id,
+      instalacaoId: idInstalacao,
+      emitidoPor: req.username,
+      dataEmissao: new Date(), // 21 de maio de 2025, 16:52 WEST
+      hashDigital: crypto.createHash('sha256').update(certificadoBase64).digest('hex'),
+      caminhoArquivo: `/${filePath}`,
+      certificadoBase64
+    });
+
+    // Salvar o certificado
+    await certificado.save();
+
+    res.status(201).json({ message: 'Certificado enviado com sucesso', certificado });
+  } catch (error) {
+    console.error('Erro ao fazer upload do certificado:', error);
+    res.status(500).json({ error: 'Erro ao fazer upload do certificado' });
+  }
+});
+
+app.listen(3000, () => console.log('Servidor rodando na porta 3000'));

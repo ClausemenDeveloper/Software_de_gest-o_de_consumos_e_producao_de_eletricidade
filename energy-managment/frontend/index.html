@@ -1,14 +1,17 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt">
 <head>
+  <meta charset="UTF-8">
   <title>Gestão de Energia Solar</title>
   <link rel="stylesheet" href="style.css">
-
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-  <div id="login-form">
+
+<!-- FORMULÁRIO DE LOGIN -->
+<div id="login-form">
   <h1>Gestão de Energia Solar</h1>
-  <form class="form">
+  <form class="form" id="loginForm">
     <input type="text" id="username" placeholder="Username" required>
     <input type="password" id="password" placeholder="Password" required>
     <button type="submit">Login</button>
@@ -16,39 +19,111 @@
   </form>
 </div>
 
-  <div id="dashboard" style="display: none;">
-    <h1>Gestão de Energia Solar</h1>
-    <button onclick="logout()">Logout</button>
-    <div class="form">
-      <h2>Registrar Produção</h2>
-      <input type="date" id="production-date">
-      <input type="number" id="production-kwh" placeholder="kWh gerado" step="0.01">
-      <button onclick="addProduction()">Adicionar</button>
-    </div>
-    <div class="form">
-      <h2>Registrar Consumo</h2>
-      <input type="date" id="consumption-date">
-      <input type="number" id="consumption-kwh" placeholder="kWh consumido" step="0.01">
-      <button onclick="addConsumption()">Adicionar</button>
-    </div>
-    <h2>Métricas</h2>
-    <div id="metrics"></div>
-    <h2>Histórico</h2>
+<!-- DASHBOARD -->
+<div id="dashboard" style="display: none;">
+  <h1>Gestão de Energia Solar</h1>
+  <button onclick="logout()">Logout</button>
+
+  <!-- Registrar Produção -->
+  <div class="form">
+    <h2>Registrar Produção</h2>
+    <input type="date" id="production-date">
+    <input type="number" id="production-kwh" placeholder="kWh gerado" step="0.01">
+    <button onclick="addProduction()">Adicionar</button>
+  </div>
+
+  <!-- Registrar Consumo -->
+  <div class="form">
+    <h2>Registrar Consumo</h2>
+    <input type="date" id="consumption-date">
+    <input type="number" id="consumption-kwh" placeholder="kWh consumido" step="0.01">
+    <button onclick="addConsumption()">Adicionar</button>
+  </div>
+
+  <!-- Visualização: Gráfico + Tabela -->
+  <div class="form">
+    <h2>Resumo de Energia</h2>
+    <canvas id="energyChart" width="600" height="300"></canvas>
     <table>
       <thead>
         <tr>
           <th>Tipo</th>
           <th>Data</th>
-          <th>kWh</th>
+          <th>Energia (kWh)</th>
         </tr>
       </thead>
       <tbody id="energy-table-body"></tbody>
     </table>
-    <h2>Gráfico</h2>
-    <canvas id="energyChart"></canvas>
   </div>
 
-  <script src="lib/chart.min.js"></script>
-  <script src="app.js"></script>
+  <!-- Registrar Instalação (Clientes) -->
+  <form id="installation-form" class="form" style="display: none;">
+    <h2>Registrar Instalação de Painéis Solares</h2>
+    
+    <label for="installation-date">Data da Instalação</label>
+    <input type="date" id="installation-date" required>
+
+    <label for="power">Potência Instalada (kW)</label>
+    <input type="number" id="power" required placeholder="Ex: 5.0" step="0.01" min="0">
+
+    <label for="panels">Número de Painéis</label>
+    <input type="number" id="panels" required placeholder="Ex: 10" min="1">
+
+    <label for="panel-type">Tipo de Painel</label>
+    <select id="panel-type" required>
+      <option value="">Selecione o tipo</option>
+      <option value="monocristalino">Monocristalino</option>
+      <option value="policristalino">Policristalino</option>
+      <option value="filme-fino">Filme fino</option>
+    </select>
+
+    <label for="location">Localização (Endereço completo)</label>
+    <input type="text" id="location" required placeholder="Rua, número, cidade...">
+
+    <label for="latitude">Latitude</label>
+    <input type="number" id="latitude" required placeholder="Ex: 38.7169" step="any">
+
+    <label for="longitude">Longitude</label>
+    <input type="number" id="longitude" required placeholder="Ex: -9.1399" step="any">
+
+    <label for="documents">Upload de documentos (opcional)</label>
+    <input type="file" id="documents" multiple accept=".pdf,.jpg,.jpeg,.png">
+
+    <button type="submit">Submeter Instalação</button>
+    <p id="install-message" style="color: lightgreen;"></p>
+  </form>
+
+  <!-- Visualizar Certificados (Clientes) -->
+  <div id="certificates" class="form" style="display: none;">
+    <h2>Meus Certificados</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Instalação ID</th>
+          <th>Data de Emissão</th>
+          <th>Certificado</th>
+        </tr>
+      </thead>
+      <tbody id="certificates-table-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- FORMULÁRIO DE UPLOAD DE CERTIFICADOS (TÉCNICOS) -->
+<div id="certificado-upload" class="formulario" style="display: none;">
+  <h2>Upload de Certificado</h2>
+  <input type="text" id="cliente-id" placeholder="ID ou Nome do Cliente" required>
+  <input type="text" id="instalacao-id" placeholder="ID da Instalação" required>
+  <input type="text" id="tecnico-id" placeholder="ID do Técnico" value="" readonly>
+  <input type="file" id="certificado-file" accept=".pdf" required>
+  <button onclick="uploadCertificado()">Enviar Certificado</button>
+  <p id="upload-message" style="color: lightgreen;"></p>
+</div>
+
+
+
+
+<!-- LÓGICA JS -->
+<script src="app.js"></script>
 </body>
 </html>

@@ -174,3 +174,60 @@ Final Checks
 If you still get command not found, ensure MongoDB was installed correctly (check /usr/bin/mongod exists). Let me know if you need further help!
 
 
+##SPRINT 2
+🛠️ Sprint #2 – Implementação do Registo de Instalações de Painéis Solares
+📌 Autenticação (Cliente)
+Método: POST
+URL: http://localhost:3000/api/login
+Corpo (Raw → JSON):
+
+json
+Copiar
+Editar
+{
+  "username": "cliente1",
+  "password": "senha123"
+}
+➡️ Copia o token recebido na resposta.
+
+🔐 Nos headers, adiciona:
+Authorization: Bearer <token_copiado>
+
+✅ Consultas Disponíveis para Cliente Autenticado
+Consultar instalações registadas
+GET → http://localhost:3000/api/instalacoes
+
+Consultar dados de produção de energia
+GET → http://localhost:3000/api/production
+
+Consultar dados de consumo de energia
+GET → http://localhost:3000/api/consumption
+
+🧰 Registo do Certificado pelo Técnico Certificado
+🔐 Autenticação (Técnico)
+Método: POST
+URL: http://localhost:3000/api/login
+Corpo (Raw → JSON):
+
+json
+Copiar
+Editar
+{
+  "username": "tecnico1",
+  "password": "tecnico123"
+}
+➡️ Copia o token e adiciona-o nos headers:
+Authorization: Bearer <token_copiado>
+
+🗂️ Fluxo de Aprovação ou Rejeição de Instalações
+Consultar instalações pendentes de aprovação
+GET → http://localhost:3000/api/instalacoes/pendentes
+➡️ Copia o campo _id de uma instalação pendente.
+
+Aprovar instalação
+PATCH → http://localhost:3000/api/instalacoes/:id/aprovar
+
+Rejeitar instalação
+PATCH → http://localhost:3000/api/instalacoes/:id/rejeitar
+
+
