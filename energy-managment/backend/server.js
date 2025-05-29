@@ -14,6 +14,7 @@ const Production = require('./models/Production');
 const Consumption = require('./models/Consumption');
 const EnergyData = require('./models/EnergyData');
 const Certificate = require('./models/Certificate');
+const Credit = require('./models/Credit');
 
 const app = express();
 app.use(express.json());
@@ -99,6 +100,99 @@ const authorizeTechnician = (req, res, next) => {
   next();
 };
 
+// Middleware para autorizar gestores de operações
+const authorizeOperationsManager = (req, res, next) => {
+  if (req.userRole !== 'gestor_operacoes') {
+    return res.status(403).json({ error: 'Apenas gestores de operações podem acessar esta rota.' });
+  }
+  next();
+};
+
+// Middleware para verificar a existência de dados de consumo nos últimos 6 meses
+async function verifyConsumption(userId, res) {
+  const response = await fetch('http://localhost:4000/consumption/month');
+  const responseJson = await response.json();
+  // Obter data inicial e final do mês em questão
+  var date = new Date(), y = date.getFullYear(), m = date.getMonth();
+  m = m - 1;
+  if(m < 0) { y = y - 1; m += 12; }
+  var firstDay = new Date(y, m, 1);
+  var lastDay = new Date(y, m + 1, 0);
+  // Ver se existe na base de dados, dados de consumo do mês passado
+  var consumption = await Consumption.findOne({ userId: userId, date: { $gte: firstDay, $lt: lastDay }});
+  if(!consumption) {
+    // Criar data do mês em questão
+    if(m !== 1) { d = 1 + Math.floor(Math.random() * 30); } else { d = 1 + Math.floor(Math.random() * 28); }
+    var dataMes = new Date(y, m, d);
+    // Criar documento para inserir na BD
+    const consumptionMonth = new Consumption({
+      userId: userId,
+      kwh: responseJson.kwh,
+      date: dataMes
+    });
+    consumptionLastMonth = responseJson.kwh;
+    // Inserir documento criado
+    try {
+      consumptionMonth.save();
+      console.log('Novo registo de consumos do utilizador ' + userId);
+    } catch(error) {
+      console.log('Erro ao salvar registo de consumos.\n' + error);
+      return res.status(400).json( {error: "Erro ao salvar registo de consumos."});
+    }
+  } else {
+    consumptionLastMonth = await consumption.kwh;
+  }
+  return await consumptionLastMonth;
+};
+
+// Middleware para verificar a existência de instalacoes e de dados de produção
+async function verifyProduction(userId, res) {
+  // Verificar se o utilizador tem instalações
+  Installation.findOne({userId: userId})
+  .then((result) => {
+    if(!result) {
+      return res.status(400).json({error: "Utilizador não tem instalações."});
+    }
+  });
+
+  // Buscar dados de produção para um mês
+  const response = await fetch('http://localhost:4000/production/month');
+  const responseJson = await response.json();
+  // Obter data inicial e final do mês em questão
+  var date = new Date(), y = date.getFullYear(), m = date.getMonth();
+  m = m - 1;
+  if(m < 0) { y = y - 1; m += 12; }
+  var firstDay = new Date(y, m, 1);
+  var lastDay = new Date(y, m + 1, 0);
+
+  // Ver se existe na base de dados, dados de produção do mês passado
+  var production = await Production.findOne({ userId: userId, date: { $gte: firstDay, $lt: lastDay }});
+  if(!production) {
+    // Criar data do mês em questão
+    if(m !== 1) { d = 1 + Math.floor(Math.random() * 30); } else { d = 1 + Math.floor(Math.random() * 28); }
+    var dataMes = new Date(y, m, d);
+    // Criar documento para inserir na BD
+    const productionMonth = new Production({
+      userId: userId,
+      kwh: responseJson.kwh,
+      date: dataMes
+    });
+
+    productionLastMonth = responseJson.kwh;
+    // Inserir documento criado
+    try {
+      productionMonth.save();
+      console.log('Novo registo de produção do utilizador ' + userId);
+    } catch(error) {
+      console.log('Erro ao salvar registo de produção.\n' + error);
+      return res.status(400).json( {error: "Erro ao salvar registo de produção."});
+    }
+  } else {
+    productionLastMonth = await production.kwh;
+  }
+  return await productionLastMonth;
+};
+
 // Rota de login
 app.post('/api/login', async (req, res) => {
   console.log('Requisição recebida:', req.body);
@@ -153,7 +247,34 @@ app.post('/api/production', authMiddleware, async (req, res) => {
   }
 });
 
-app.get('/api/production', authMiddleware, async (req, res) => {
+// Endpoint para enviar dados de produção de energia de um utilizador dado no body
+app.get('/api/production/:user', authMiddleware, authorizeOperationsManager, async (req, res) => {
+  // Validação dos dados
+  if(!req.params.user) {
+    return res.status(400).json({error: "Utilizador não especifícado."});
+  }
+  // Verificar dados de produção do mês passado
+  var user = req.params.user;
+  var productionLastMonth = await verifyProduction(user, res);
+  // Ir buscar dados de produção no momento
+  var response = await fetch('http://localhost:4000/production/now');
+  var json = await response.json();
+  console.log("Dados Recebidos. " + json.kwh);
+
+  // Criar JSON para enviar dados de produção no momento
+  const production = {
+    kwhLastMonth: productionLastMonth,
+    kwhNow: json.kwh
+  };
+  // Enviar dados de produção
+  try {
+    return res.status(201).json(production);
+  } catch(error) {
+    return res.status(400).json({ error: 'Não foi possível enviar dados de produção.' });
+  }
+});
+
+app.get('/api/production-all', authMiddleware, async (req, res) => {
   try {
     const productions = await Production.find({ userId: req.userId }).sort({ date: -1 });
     res.json(productions);
@@ -178,13 +299,96 @@ app.post('/api/consumption', authMiddleware, async (req, res) => {
   }
 });
 
-app.get('/api/consumption', authMiddleware, async (req, res) => {
+// Endpoint para enviar dados de consumo de energia
+app.get('/api/consumption/:user', authMiddleware, authorizeOperationsManager, async (req, res) => {
+  // Validação dos dados
+  if(!req.params.user) {
+    return res.status(400).json({error: "Utilizador não especifícado."});
+  }
+  // Verificar dados de consumo do mês passado
+  var user = req.params.user;
+  var consumptionLastMonth = await verifyConsumption(user, res);
+  // Ir buscar dados de consumo no momento
+  var response = await fetch('http://localhost:4000/consumption/now');
+  var json = await response.json();
+  console.log("Dados Recebidos. " + json.kwh);
+
+  // Criar JSON para enviar dados de consumo
+  const consumptionNow = {
+    kwhLastMonth: consumptionLastMonth,
+    kwhNow: json.kwh,
+  };
+
+  // Enviar dados de consumo
+  try {
+    return res.status(201).json(consumptionNow);
+  } catch(error) {
+    return res.status(400).json({ error: 'Não foi possível enviar dados de consumo.' });
+  }
+});
+
+app.get('/api/consumption-all', authMiddleware, async (req, res) => {
   try {
     const consumptions = await Consumption.find({ userId: req.userId }).sort({ date: -1 });
     res.json(consumptions);
   } catch (error) {
     res.status(500).json({ error: 'Erro ao buscar consumo' });
   }
+});
+
+// Endpoint para enviar os creditos de um utilizador
+app.get('/api/credits/:user', authMiddleware, authorizeOperationsManager, async (req, res) => {
+  // Validação dos dados
+  if(!req.params.user) {
+    return res.status(400).json({error: "Utilizador não especifícado."});
+  }
+  // Verificar dados de produção e consumo do mês passado
+  var user = req.params.user;
+  var productionLastMonth = await verifyProduction(user, res);
+  var consumptionLastMonth = await verifyConsumption(user, res);
+  // Definir os creditos
+  if(productionLastMonth > consumptionLastMonth) {
+    var credits = Math.floor(productionLastMonth - consumptionLastMonth);
+  } else {
+    var credits = 0;
+  }
+  // Buscar os creditos já existentes
+  var oldCredits = await Credit.findOne({ userId: user });
+  if(oldCredits) {
+    date = new Date();
+    if(!(oldCredits.timestamp.getMonth() === date.getMonth()))
+      credits += await oldCredits.credits;
+    else
+      return res.status(200).json({ credits: credits });
+  } else {
+    creditsJson = new Credit({
+      userId: user,
+      credits: credits
+    });
+    try {
+      creditsJson.save();
+      return res.status(201).json({credits: credits});
+    } catch(error) {
+      return res.status(400).json({error: "Ocorreu um erro a salvar os créditos."});
+    }
+  }
+  try {
+    await oldCredits.updateOne({ credits: credits });
+  } catch(error) {
+    return res.status(400).json({error: "Ocorreu um erro a salvar os créditos."});
+  }
+  return res.status(201).json({ credits: credits });
+});
+
+app.get('/api/user/:username', authMiddleware, authorizeOperationsManager,  async (req, res) => {
+  if(!req.params.username) {
+    return res.status(400).json({error: "É necessário o username."});
+  }
+  var user = await User.findOne({ username: req.params.username });
+  if(!user) {
+    return res.status(400).json({error: "Não foi possível encontrar este utilizador."});
+  }
+  return res.status(200).json({ userId: user._id });
 });
 
 // MÉTRICAS

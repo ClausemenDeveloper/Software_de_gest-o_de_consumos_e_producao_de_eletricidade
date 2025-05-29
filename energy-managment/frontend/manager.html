@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+    <head>
+        <link rel="stylesheet" href="manager-style.css">
+    </head>
+    <body>
+        <div class="nav">
+            <h2>Gestor de Operações</h2>
+            <form id="form-logout">
+                <button type="submit" id="btn-logout">Logout</button>
+            </form>
+        </div>
+        <div class="content">
+            <p id="p-username">Utilizador: </p>
+            <div class="user-search">
+                <h1>Procurar Utilizador</h1>
+                <form id="form-search">  
+                    <table id="table-search">
+                        <tr><td><input id="username" class="form-input" placeholder="Nome de Utilizador" required /></td></tr>
+                        <tr><td><button id="submit" type="submit" class="form-button">Pesquisar</button></td></tr>
+                    </table>
+                </form>
+                <p id="p-error" style="display:none"></p>
+            </div>
+            <div id="user">
+                <h1 id="title-user-data">Dados do Utilizador</h2>
+                <p id="username-credits"><b>Nome de Utilizador: <br/>Créditos: </b></p>
+                <div class="user-data">
+                    <div class="user-data-consumption">
+                        <div class="user-data-now">
+                            <h3>Consumo no Momento</h3>
+                            <h1 id="user-consumption-now" >Placeholder</h1>
+                        </div>
+                        <div class="user-data-month">
+                            <h3>Consumo Mês Passado</h3>
+                            <h1 id="user-consumption-month" >Placeholder</h1>
+                        </div>
+                    </div>
+                    <div class="user-data-production">
+                        <div class="user-data-now">
+                            <h3>Produção no Momento</h3>
+                            <h1 id="user-production-now" >Placeholder</h1>
+                        </div>
+                        <div class="user-data-month">
+                            <h3>Produção Mês Passado</h3>
+                            <h1 id="user-production-month" >Placeholder</h1>
+                        </div>
+                    </div>
+                </div>
+            </div>    
+        </div>
+    </body>
+    <script src="manager.js"></script>
+</html>

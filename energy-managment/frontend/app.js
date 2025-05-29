@@ -22,6 +22,7 @@ async function loginUser(event) {
     if (data.token) {
       localStorage.setItem('token', data.token);
       console.log('Token armazenado:', localStorage.getItem('token'));
+      await isOperationsManager();
       document.getElementById('login-form').style.display = 'none';
       document.getElementById('dashboard').style.display = 'block';
       showInstallationFormIfClient();
@@ -94,6 +95,26 @@ function logout() {
   document.getElementById('dashboard').style.display = 'none';
   document.getElementById('login-form').style.display = 'block';
   document.getElementById('error-message').textContent = '';
+}
+
+function isOperationsManager() {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    console.error('Nenhum token encontrado');
+    return;
+  }
+
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    console.log('Payload do token decodificado:', payload);
+    const role = payload.role;
+
+    if (role === 'gestor_operacoes') {
+      document.location.href = './manager.html',true;
+    }
+  } catch (e) {
+    console.error('Erro ao decodificar token:', e);
+  }
 }
 
 function showInstallationFormIfClient() {
@@ -280,10 +301,10 @@ async function fetchLocalEnergyData() {
   }
 
   try {
-    const productionResponse = await fetch('http://localhost:3000/api/production', {
+    const productionResponse = await fetch('http://localhost:3000/api/production-all', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    const consumptionResponse = await fetch('http://localhost:3000/api/consumption', {
+    const consumptionResponse = await fetch('http://localhost:3000/api/consumption-all', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
 
