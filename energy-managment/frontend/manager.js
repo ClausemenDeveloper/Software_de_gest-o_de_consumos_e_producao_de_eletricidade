@@ -33,6 +33,7 @@ async function hasToken() {
 // Função que procura dos dados do utilizador dados no formulário de pesquisa
 async function searchUser(e) {
     e.preventDefault();
+    // Buscar id do utilizador
     url = "http://localhost:3000/api/user/" + username.value;
     var response = await fetch('http://localhost:3000/api/user/' + username.value, {
         method: 'GET',
@@ -45,6 +46,7 @@ async function searchUser(e) {
         return;
     }
 
+    // Buscar consumo do utilizador
     var userId = user.userId;
     var consumo = await fetch('http://localhost:3000/api/consumption/' + userId, {
         method: 'GET',
@@ -57,6 +59,7 @@ async function searchUser(e) {
         return;
     }
 
+    // Buscar produção do utilizador
     var producao = await fetch('http://localhost:3000/api/production/' + userId, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`  }
@@ -68,6 +71,7 @@ async function searchUser(e) {
         return;
     }
 
+    // Buscar créditos do utilizador
     var creditos = await fetch('http://localhost:3000/api/credits/' + userId, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`  }
@@ -79,6 +83,7 @@ async function searchUser(e) {
         return;
     }
 
+    // Mudar o HTML para os valores correspondentes
     userConsumptionNow.innerHTML = consumoJson.kwhNow;
     userConsumptionMonth.innerHTML = consumoJson.kwhLastMonth;
     userProductionNow.innerHTML = producaoJson.kwhNow;

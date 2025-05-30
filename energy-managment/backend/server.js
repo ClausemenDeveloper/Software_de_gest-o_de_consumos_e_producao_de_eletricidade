@@ -247,7 +247,7 @@ app.post('/api/production', authMiddleware, async (req, res) => {
   }
 });
 
-// Endpoint para enviar dados de produção de energia de um utilizador dado no body
+// Endpoint para enviar dados de produção de energia de um utilizador dado no url
 app.get('/api/production/:user', authMiddleware, authorizeOperationsManager, async (req, res) => {
   // Validação dos dados
   if(!req.params.user) {
@@ -299,7 +299,7 @@ app.post('/api/consumption', authMiddleware, async (req, res) => {
   }
 });
 
-// Endpoint para enviar dados de consumo de energia
+// Endpoint para enviar dados de consumo de energia de um utilizador dado no url
 app.get('/api/consumption/:user', authMiddleware, authorizeOperationsManager, async (req, res) => {
   // Validação dos dados
   if(!req.params.user) {
